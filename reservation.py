@@ -31,7 +31,6 @@ class Client:
                 if self._time_to_next_reservation(date, time) >= timedelta(minutes=30):
                     return time
 
-
     def _time_to_next_reservation(self, date, time):
         # date_time = datetime.combine(date, time)
         global date_time_var
@@ -64,6 +63,43 @@ class Client:
             return False
         return True
 
+    def _create_new_reservation(self, date, time):
+        available_time = self._time_to_next_reservation(date, time)
+        print(available_time)
+        if available_time == timedelta(minutes=90):
+            choose_time = input('How long would you like to book court?\n'
+                                '\t0. Cancel booking\n'
+                                '\t1. 30 minutes\n'
+                                '\t2. 60 minutes\n'
+                                '\t3. 90 minutes\n')
+        elif available_time == timedelta(minutes=60):
+            choose_time = input('How long would you like to book court?\n'
+                                '\t0. Cancel booking\n'
+                                '\t1. 30 minutes\n'
+                                '\t2. 60 minutes\n')
+        else:
+            choose_time = input('Would you like to book court for 30 minutes?\n'
+                                '\t0. No\n'
+                                '\t1. Yes\n')
+        end_time = (datetime.combine(date, time) + timedelta(minutes=60)).time()
+        match choose_time:
+            case '1':
+                end_time = (datetime.combine(date, time) + timedelta(minutes=30)).time()
+            case '2':
+                end_time = (datetime.combine(date, time) + timedelta(minutes=60)).time()
+            case '3':
+                end_time = (datetime.combine(date, time) + timedelta(minutes=90)).time()
+            case '0':
+                print("Booking process was cancelled")
+                return False
+
+        reservation = Reservation(date, time, end_time)
+        self.reservation.append(reservation)
+        date_str = datetime.strftime(date, "%d.%m.%Y")
+        time_str = time.strftime("%H:%M")
+        print(f"Reservation for {date_str} at {time_str} was added.")
+        return True
+
     def make_reservation(self, date, time):
         global date_time_var
         date_time_var = datetime.combine(date, time)
@@ -87,17 +123,12 @@ class Client:
             choice = input(f"Would you like to make a reservation for {next_available_time.strftime('%H:%M')} "
                            f"instead? (yes/no)\n").lower()
             if choice == 'yes':
-                pass
+                self._create_new_reservation(date, time)
+            else:
+                print("Booking process was cancelled")
+                return False
         else:
-            available_time = self._time_to_next_reservation(date, time)
-            print(available_time)
-            reservation = Reservation(date, time)
-            # reservation = Reservation(date, time, time + timedelta(minutes=length))
-            self.reservation.append(reservation)
-            date_str = datetime.strftime(date, "%d.%m.%Y")
-            time_str = time.strftime("%H:%M")
-            print(f"Reservation for {date_str} at {time_str} was added.")
-            return True
+            self._create_new_reservation(date, time)
 
     def __str__(self):
         return self.name
@@ -137,6 +168,3 @@ class Reservation:
     @classmethod
     def list_of_reservations(cls):
         return Reservation._reservations
-
-
-

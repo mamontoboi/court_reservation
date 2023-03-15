@@ -66,10 +66,5 @@ def menu(client):
 
 
 if __name__ == '__main__':
-    # while True:
     guest = greeting()
-    print(guest)
-        # if guest == 'exit':
-        #     break
-        # else:
     menu(guest)
