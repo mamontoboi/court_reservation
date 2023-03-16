@@ -22,20 +22,16 @@ class Client:
         else:
             return True
 
-    def _next_available_time(self, date, time):
-        global date_time_var
-        global reservations_list
-        for reservation in reservations_list:
+    def _next_available_time(self, date, time, all_reservations):
+        for reservation in all_reservations:
             if reservation.date == date and reservation.start_time <= time < reservation.end_time:
                 time = reservation.end_time
-                if self._time_to_next_reservation(date, time) >= timedelta(minutes=30):
+                if self._time_to_next_reservation(date, time, all_reservations) >= timedelta(minutes=30):
                     return time
 
-    def _time_to_next_reservation(self, date, time):
-        # date_time = datetime.combine(date, time)
-        global date_time_var
-        global reservations_list
-        filter_reserv = [reservation for reservation in reservations_list
+    def _time_to_next_reservation(self, date, time, all_reservations):
+        date_time_var = datetime.combine(date, time)
+        filter_reserv = [reservation for reservation in all_reservations
                          if datetime.combine(reservation.date, reservation.start_time) > date_time_var]
         if len(filter_reserv) > 0:
             timediff = min(datetime.combine(reservation.date, reservation.start_time) - date_time_var
@@ -44,10 +40,9 @@ class Client:
             timediff = timedelta(minutes=90)
         return timediff
 
-    def _check_if_vacant(self, date, time):
-        global reservations_list
-        for item in reservations_list:
-            if item.date == date and item.start_time <= time < item.end_time:
+    def _check_if_vacant(self, date, time, all_reservations):
+        for reservation in all_reservations:
+            if reservation.date == date and reservation.start_time <= time < reservation.end_time:
                 return False
         return True
 
@@ -63,8 +58,8 @@ class Client:
             return False
         return True
 
-    def _create_new_reservation(self, date, time):
-        available_time = self._time_to_next_reservation(date, time)
+    def _create_new_reservation(self, date, time, all_reservations):
+        available_time = self._time_to_next_reservation(date, time, all_reservations)
         if available_time == timedelta(minutes=90):
             choose_time = input('How long would you like to book court?\n'
                                 '\t0. Cancel booking\n'
@@ -102,10 +97,7 @@ class Client:
         return True
 
     def make_reservation(self, date, time):
-        global date_time_var
-        date_time_var = datetime.combine(date, time)
-        global reservations_list
-        reservations_list = Reservation.list_of_reservations()
+        all_reservations = Reservation.list_of_reservations()
         if not self._reservations_per_week(date):
             print("Unfortunately, you already have 2 reservations that week.")
             return False
@@ -118,18 +110,18 @@ class Client:
             print("Unfortunately, reservation cannot be made as less than 1 hours remained to the reservation time")
             return False
 
-        if not self._check_if_vacant(date, time):
+        if not self._check_if_vacant(date, time, all_reservations):
             print("Unfortunately, this time is already occupied.")
-            next_available_time = self._next_available_time(date, time)
+            next_available_time = self._next_available_time(date, time, all_reservations)
             choice = input(f"Would you like to make a reservation for {next_available_time.strftime('%H:%M')} "
                            f"instead? (yes/no)\n").lower()
             if choice == 'yes':
-                self._create_new_reservation(date, next_available_time)
+                self._create_new_reservation(date, next_available_time, all_reservations)
             else:
                 print("Booking process was cancelled")
                 return False
         else:
-            self._create_new_reservation(date, time)
+            self._create_new_reservation(date, time, all_reservations)
 
     def __str__(self):
         return self.name
@@ -217,3 +209,4 @@ class Reservation:
                           f"till {reservation[2].strftime('%H:%M')}")
             else:
                 print("No Reservations")
+        print()
