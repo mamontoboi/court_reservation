@@ -1,17 +1,54 @@
 from datetime import datetime, timedelta
+import sqlite3
 
 
 class Client:
-    _clients = []
+    # _clients = []
 
     def __init__(self, name):
         self.name = name
         self.reservation = []
-        Client._clients.append(self)
+        # Client._clients.append(self)
+        try:
+            connection = sqlite3.connect('tennis_court_schedule.db')
+            cursor = connection.cursor()
+
+            sql_query_create_db = '''CREATE TABLE IF NOT EXISTS clients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL);'''
+
+            cursor.execute(sql_query_create_db)
+            connection.commit()
+
+            sql_query_insert = """INSERT INTO clients (name) VALUES (?);"""
+            cursor.execute(sql_query_insert, self.name)
+            connection.commit()
+        except sqlite3.Error as e:
+            print(f"The following problem was encountered: {e}.\n")
+        finally:
+            if connection:
+                connection.close()
 
     @classmethod
     def list_of_client(cls):
-        return Client._clients
+        try:
+            connection = sqlite3.connect('tennis_court_schedule.db')
+            cursor = connection.cursor()
+
+            sql_query_select = """SELECT * FROM clients;"""
+            cursor.execute(sql_query_select)
+            clients = cursor.fetchall()
+            clients_list = []
+            for element in clients:
+                client = Client(element[0])
+                clients_list.append(client)
+            return clients_list
+        except sqlite3.Error as e:
+            print(f"The following problem was encountered: {e}.\n")
+        finally:
+            if connection:
+                connection.close()
+            print("The database was closed.\n")
 
     def _reservations_per_week(self, date):
         week_start = date - timedelta(days=date.weekday())
@@ -65,40 +102,39 @@ class Client:
 
     def _create_new_reservation(self, date, time):
         available_time = self._time_to_next_reservation(date, time)
+        print(available_time)
         if available_time == timedelta(minutes=90):
             choose_time = input('How long would you like to book court?\n'
                                 '\t0. Cancel booking\n'
                                 '\t1. 30 minutes\n'
                                 '\t2. 60 minutes\n'
-                                '\t3. 90 minutes\n').strip()
+                                '\t3. 90 minutes\n')
         elif available_time == timedelta(minutes=60):
             choose_time = input('How long would you like to book court?\n'
                                 '\t0. Cancel booking\n'
                                 '\t1. 30 minutes\n'
-                                '\t2. 60 minutes\n').strip()
+                                '\t2. 60 minutes\n')
         else:
             choose_time = input('Would you like to book court for 30 minutes?\n'
                                 '\t0. No\n'
-                                '\t1. Yes\n').lower().strip()
+                                '\t1. Yes\n')
         end_time = (datetime.combine(date, time) + timedelta(minutes=60)).time()
         match choose_time:
-            case '1' | '30' | 'yes':
+            case '1':
                 end_time = (datetime.combine(date, time) + timedelta(minutes=30)).time()
-            case '2' | '60':
+            case '2':
                 end_time = (datetime.combine(date, time) + timedelta(minutes=60)).time()
-            case '3' | '90':
+            case '3':
                 end_time = (datetime.combine(date, time) + timedelta(minutes=90)).time()
-            case '0' | 'no':
+            case '0':
                 print("Booking process was cancelled")
                 return False
 
-        reservation = Reservation(self, date, time, end_time)
+        reservation = Reservation(date, time, end_time)
         self.reservation.append(reservation)
         date_str = datetime.strftime(date, "%d.%m.%Y")
         time_str = time.strftime("%H:%M")
-        minutes_dt = (datetime.combine(date, end_time) - datetime.combine(date, time))
-        minutes = minutes_dt.total_seconds() / 60
-        print(f"Reservation for {date_str} at {time_str} for {minutes:.0f} minutes was added.")
+        print(f"Reservation for {date_str} at {time_str} was added.")
         return True
 
     def make_reservation(self, date, time):
@@ -124,7 +160,7 @@ class Client:
             choice = input(f"Would you like to make a reservation for {next_available_time.strftime('%H:%M')} "
                            f"instead? (yes/no)\n").lower()
             if choice == 'yes':
-                self._create_new_reservation(date, next_available_time)
+                self._create_new_reservation(date, time)
             else:
                 print("Booking process was cancelled")
                 return False
@@ -147,7 +183,6 @@ class Client:
 
                 self.reservation.remove(reservation)
                 Reservation.list_of_reservations().remove(reservation)
-                # del reservation
                 date_str = datetime.strftime(date, "%d.%m.%Y")
                 print(f"Your reservation for {date_str} has been cancelled.")
                 return
@@ -156,7 +191,7 @@ class Client:
 
 
 class Reservation:
-    _reservations = []
+    # _reservations = []
 
     def __init__(self, client, date, start_time, end_time=None):
         self.client = client
@@ -166,54 +201,34 @@ class Reservation:
             self.end_time = (datetime.combine(date, start_time) + timedelta(minutes=60)).time()
         else:
             self.end_time = end_time
-        Reservation._reservations.append(self)
+
+        # Reservation._reservations.append(self)
+        try:
+            connection = sqlite3.connect('tennis_court_schedule.db')
+            cursor = connection.cursor()
+
+            sql_query_create_db = '''CREATE TABLE IF NOT EXISTS reservations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client TEXT NOT NULL,
+            FOREIGN KEY (client) REFERENCES clients(name),
+            "date" DATE NOT NULL,
+            start_time TIME NOT NULL,
+            end_time TIME NOT NULL,
+            );'''
+
+            cursor.execute(sql_query_create_db)
+            connection.commit()
+            data_tuple = (self.client, self.date, self.start_time, self.end_time)
+            sql_query_insert = """INSERT INTO reservations (client, "date", start_time, end_time) 
+            VALUES (?, ?, ?, ?);"""
+            cursor.execute(sql_query_insert, data_tuple)
+            connection.commit()
+        except sqlite3.Error as e:
+            print(f"The following problem was encountered: {e}.\n")
+        finally:
+            if connection:
+                connection.close()
 
     @classmethod
     def list_of_reservations(cls):
         return Reservation._reservations
-
-    # @staticmethod
-    # def iterate_over_days(date_start, date_end):
-    #     yield from ((date_start + timedelta(days=day)) for day in range((date_end - date_start).days + 1))
-
-    @classmethod
-    def print_schedule(cls, date_start, date_end):
-
-        def _get_day_name(target_date):
-            today = date.today()
-            tomorrow = today + timedelta(days=1)
-            after_tomorrow = today + timedelta(days=2)
-            yesterday = today - timedelta(days=1)
-            before_yesterday = today - timedelta(days=2)
-            if target_date == today:
-                return "Today"
-            elif target_date == tomorrow:
-                return "Tomorrow"
-            elif target_date == after_tomorrow:
-                return "The day after tomorrow"
-            elif target_date == yesterday:
-                return "Yesterday"
-            elif target_date == before_yesterday:
-                return "The day before yesterday"
-            else:
-                return target_date.strftime("%A")
-
-        all_reservs = Reservation.list_of_reservations()
-        period_schedule = {}
-        for day in range((date_end - date_start).days + 1):
-            current_date = date_start + timedelta(days=day)
-            period_schedule[current_date] = []
-
-        for reservation in all_reservs:
-            if date_start <= reservation.date <= date_end:
-                period_schedule.get(reservation.date).append((reservation.client,
-                                                              reservation.start_time, reservation.end_time))
-        for date, reservations in period_schedule.items():
-            print(f"\n{_get_day_name(date)}, {datetime.strftime(date, '%d.%m.%Y')}")
-            if len(reservations) > 0:
-                for reservation in reservations:
-                    print(f"* {reservation[0]}, from "
-                          f"{reservation[1].strftime('%H:%M')} "
-                          f"till {reservation[2].strftime('%H:%M')}")
-            else:
-                print("No Reservations")
