@@ -1,4 +1,4 @@
-from reservation import Session
+from session import Session
 
 
 if __name__ == '__main__':
