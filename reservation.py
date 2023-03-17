@@ -1,4 +1,12 @@
 from datetime import datetime, timedelta
+import json
+from json import JSONEncoder
+
+
+class CustomEncoder(JSONEncoder):
+    def default(self, object):
+        if isinstance(object, Client):
+            return str(object.name)
 
 
 class Client:
@@ -16,11 +24,12 @@ class Client:
     def _reservations_per_week(self, date):
         week_start = date - timedelta(days=date.weekday())
         week_end = week_start + timedelta(days=6)
-        reservations_per_week = [reserv for reserv in self.reservation if week_start <= reserv.date <= week_end]
+        reservations_per_week = [reservation for reservation in self.reservation
+                                 if week_start <= reservation.date <= week_end]
         if len(reservations_per_week) >= 2:
             return False
-        else:
-            return True
+
+        return True
 
     def _next_available_time(self, date, time, all_reservations):
         for reservation in all_reservations:
@@ -28,14 +37,15 @@ class Client:
                 time = reservation.end_time
                 if self._time_to_next_reservation(date, time, all_reservations) >= timedelta(minutes=30):
                     return time
+        return False
 
     def _time_to_next_reservation(self, date, time, all_reservations):
         date_time_var = datetime.combine(date, time)
-        filter_reserv = [reservation for reservation in all_reservations
-                         if datetime.combine(reservation.date, reservation.start_time) > date_time_var]
-        if len(filter_reserv) > 0:
+        filter_reservations = [reservation for reservation in all_reservations
+                               if datetime.combine(reservation.date, reservation.start_time) > date_time_var]
+        if len(filter_reservations) > 0:
             timediff = min(datetime.combine(reservation.date, reservation.start_time) - date_time_var
-                           for reservation in filter_reserv)
+                           for reservation in filter_reservations)
         else:
             timediff = timedelta(minutes=90)
         return timediff
@@ -117,11 +127,12 @@ class Client:
                            f"instead? (yes/no)\n").lower()
             if choice == 'yes':
                 self._create_new_reservation(date, next_available_time, all_reservations)
-            else:
-                print("Booking process was cancelled")
-                return False
-        else:
-            self._create_new_reservation(date, time, all_reservations)
+                return True
+            print("Booking process was cancelled")
+            return False
+
+        self._create_new_reservation(date, time, all_reservations)
+        return True
 
     def __str__(self):
         return self.name
@@ -139,7 +150,6 @@ class Client:
 
                 self.reservation.remove(reservation)
                 Reservation.list_of_reservations().remove(reservation)
-                # del reservation
                 date_str = datetime.strftime(date, "%d.%m.%Y")
                 print(f"Your reservation for {date_str} has been cancelled.")
                 return
@@ -160,16 +170,35 @@ class Reservation:
             self.end_time = end_time
         Reservation._reservations.append(self)
 
+    def __str__(self):
+        return f"Reservation by {self.client} on {self.date} from {self.start_time} until {self.end_time}"
+
+    def __repr__(self):
+        return str(self.__dict__)
+
     @classmethod
     def list_of_reservations(cls):
         return Reservation._reservations
 
-    # @staticmethod
-    # def iterate_over_days(date_start, date_end):
-    #     yield from ((date_start + timedelta(days=day)) for day in range((date_end - date_start).days + 1))
+    @staticmethod
+    def serialize_to_json(data, date_start, date_end):
+        data_start_str = datetime.strftime(date_start, "%d.%m")
+        data_end_str = datetime.strftime(date_end, "%d.%m")
+        result = {}
+        for date, reservations in data.items():
+            date_str = date.strftime("%d.%m")
+            result[date_str] = []
+            if len(reservations) > 0:
+                for element in reservations:
+                    details = {"name": element[0], "start_time": element[1].strftime("%H:%M"),
+                               "end_time": element[2].strftime("%H:%M")}
+                    result[date_str].append(details)
+
+        with open(f"{data_start_str}-{data_end_str}.json", 'w') as json_file:
+            json.dump(result, json_file, indent=2, cls=CustomEncoder)
 
     @classmethod
-    def print_schedule(cls, date_start, date_end):
+    def schedule(cls, date_start, date_end, param):
 
         def _get_day_name(target_date):
             today = date.today()
@@ -179,34 +208,40 @@ class Reservation:
             before_yesterday = today - timedelta(days=2)
             if target_date == today:
                 return "Today"
-            elif target_date == tomorrow:
+            if target_date == tomorrow:
                 return "Tomorrow"
-            elif target_date == after_tomorrow:
+            if target_date == after_tomorrow:
                 return "The day after tomorrow"
-            elif target_date == yesterday:
+            if target_date == yesterday:
                 return "Yesterday"
-            elif target_date == before_yesterday:
+            if target_date == before_yesterday:
                 return "The day before yesterday"
-            else:
-                return target_date.strftime("%A")
 
-        all_reservs = Reservation.list_of_reservations()
+            return target_date.strftime("%A")
+
+        all_reservations = Reservation.list_of_reservations()
         period_schedule = {}
         for day in range((date_end - date_start).days + 1):
             current_date = date_start + timedelta(days=day)
             period_schedule[current_date] = []
 
-        for reservation in all_reservs:
+        for reservation in all_reservations:
             if date_start <= reservation.date <= date_end:
                 period_schedule.get(reservation.date).append((reservation.client,
                                                               reservation.start_time, reservation.end_time))
-        for date, reservations in period_schedule.items():
-            print(f"\n{_get_day_name(date)}, {datetime.strftime(date, '%d.%m.%Y')}")
-            if len(reservations) > 0:
-                for reservation in reservations:
-                    print(f"* {reservation[0]}, from "
-                          f"{reservation[1].strftime('%H:%M')} "
-                          f"till {reservation[2].strftime('%H:%M')}")
-            else:
-                print("No Reservations")
-        print()
+        if param == 'print':
+            for date, reservations in period_schedule.items():
+                print(f"\n{_get_day_name(date)}, {datetime.strftime(date, '%d.%m.%Y')}")
+                if len(reservations) > 0:
+                    for reservation in reservations:
+                        print(f"* {reservation[0]}, from "
+                              f"{reservation[1].strftime('%H:%M')} "
+                              f"till {reservation[2].strftime('%H:%M')}")
+                else:
+                    print("No Reservations")
+            print()
+        elif param == 'json':
+            Reservation.serialize_to_json(period_schedule, date_start, date_end)
+
+        else:
+            pass

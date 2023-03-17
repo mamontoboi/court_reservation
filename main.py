@@ -10,6 +10,7 @@ def main():
                 guest = greeting()
                 menu(guest)
             case '2':
+                print("See you again soon.")
                 break
             case _:
                 continue
@@ -44,13 +45,28 @@ def greeting():
                 return client
 
 
+def date_valid(date):
+    try:
+        date_dt = datetime.strptime(date, "%d.%m.%y").date()
+        return date_dt
+    except ValueError:
+        try:
+            date_dt = datetime.strptime(date, "%d.%m.%Y").date()
+            return date_dt
+        except ValueError:
+            print("Please re-check your data. "
+                  "Date needs to be stated in DD.MM.YYYY format.")
+            return False
+
+
 def menu(client):
     while True:
         choice = input("What do you want to do?\n\t"
                        "1. Make reservation\n\t"
                        "2. Cancel reservation\n\t"
                        "3. Print schedule\n\t"
-                       "5. Exit\n")
+                       "4. Save schedule to a file\n\t"
+                       "5. Exit\n").strip()
 
         match choice:
             case '1':
@@ -72,34 +88,46 @@ def menu(client):
             case '2':
                 date_input = input("What is the date of the reservation "
                                    "you want to cancel? {DD.MM.YYYY}\n").replace('/', '.').replace('-', '.').strip()
-                try:
-                    reservation_date = datetime.strptime(date_input, "%d.%m.%y").date()
-                except ValueError:
-                    try:
-                        reservation_date = datetime.strptime(date_input, "%d.%m.%Y").date()
-                    except ValueError:
-                        print("Please re-check your data. "
-                              "Cancellation date needs to be stated in DD.MM.YYYY format.")
-                        continue
-                client.cancel_reservation(reservation_date)
+                if date_valid(date_input):
+                    client.cancel_reservation(date_valid(date_input))
+                else:
+                    continue
 
             case '3':
                 date_from = input("From what date? {DD.MM.YYYY}\n").replace('/', '.').replace('-', '.').strip()
+                if date_valid(date_from):
+                    date_from_dt = date_valid(date_from)
+                else:
+                    continue
                 date_to = input("Until what date? {DD.MM.YYYY}\n").replace('/', '.').replace('-', '.').strip()
-                try:
-                    date_from_dt = datetime.strptime(date_from, "%d.%m.%y").date()
-                    date_to_dt = datetime.strptime(date_to, "%d.%m.%y").date()
-                except ValueError:
-                    try:
-                        date_from_dt = datetime.strptime(date_from, "%d.%m.%Y").date()
-                        date_to_dt = datetime.strptime(date_to, "%d.%m.%Y").date()
-                    except ValueError:
-                        print("Please write the data in DD.MM.YYYY format.")
-                        continue
-                Reservation.print_schedule(date_from_dt, date_to_dt)
+                if date_valid(date_to):
+                    date_to_dt = date_valid(date_to)
+                else:
+                    continue
+                Reservation.schedule(date_from_dt, date_to_dt, 'print')
+
+            case '4':
+                date_from = input("From what date? {DD.MM.YYYY}\n").replace('/', '.').replace('-', '.').strip()
+                if date_valid(date_from):
+                    date_from_dt = date_valid(date_from)
+                else:
+                    continue
+                date_to = input("Until what date? {DD.MM.YYYY}\n").replace('/', '.').replace('-', '.').strip()
+                if date_valid(date_to):
+                    date_to_dt = date_valid(date_to)
+                else:
+                    continue
+                file_format = input("\tPress 1 to save in json format\n\tPress 2 to save in csv format\n")
+                match file_format:
+                    case '1':
+                        Reservation.schedule(date_from_dt, date_to_dt, 'json')
+                        print(f"The schedule was saved in {date_from[:5]}-{date_to[:5]}.json file")
+                    case '2':
+                        Reservation.schedule(date_from_dt, date_to_dt, 'csv')
+                        print(f"The schedule was saved in {date_from[:5]}-{date_to[:5]}.csv file")
 
             case '5':
-                print("Thank you for choosing our tennis club.")
+                print("Thank you for choosing our tennis club.\n")
                 break
 
             case _:
