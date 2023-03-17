@@ -1,12 +1,13 @@
+import csv
 from datetime import datetime, timedelta
 import json
 from json import JSONEncoder
 
 
 class CustomEncoder(JSONEncoder):
-    def default(self, object):
-        if isinstance(object, Client):
-            return str(object.name)
+    def default(self, obj):
+        if isinstance(obj, Client):
+            return str(obj.name)
 
 
 class Client:
@@ -42,7 +43,9 @@ class Client:
     def _time_to_next_reservation(self, date, time, all_reservations):
         date_time_var = datetime.combine(date, time)
         filter_reservations = [reservation for reservation in all_reservations
-                               if datetime.combine(reservation.date, reservation.start_time) > date_time_var]
+                               if datetime.combine(reservation.date, reservation.start_time) > date_time_var and
+                               timedelta(minutes=0) < datetime.combine(reservation.date, reservation.start_time) -
+                               date_time_var < timedelta(minutes=90)]
         if len(filter_reservations) > 0:
             timediff = min(datetime.combine(reservation.date, reservation.start_time) - date_time_var
                            for reservation in filter_reservations)
@@ -70,7 +73,7 @@ class Client:
 
     def _create_new_reservation(self, date, time, all_reservations):
         available_time = self._time_to_next_reservation(date, time, all_reservations)
-        if available_time == timedelta(minutes=90):
+        if available_time >= timedelta(minutes=90):
             choose_time = input('How long would you like to book court?\n'
                                 '\t0. Cancel booking\n'
                                 '\t1. 30 minutes\n'
@@ -94,7 +97,7 @@ class Client:
             case '3' | '90':
                 end_time = (datetime.combine(date, time) + timedelta(minutes=90)).time()
             case '0' | 'no':
-                print("Booking process was cancelled")
+                print("Booking process was cancelled.\n")
                 return False
 
         reservation = Reservation(self, date, time, end_time)
@@ -103,32 +106,32 @@ class Client:
         time_str = time.strftime("%H:%M")
         minutes_dt = (datetime.combine(date, end_time) - datetime.combine(date, time))
         minutes = minutes_dt.total_seconds() / 60
-        print(f"Reservation for {date_str} at {time_str} for {minutes:.0f} minutes was added.")
+        print(f"Reservation for {date_str} at {time_str} for {minutes:.0f} minutes was added.\n")
         return True
 
     def make_reservation(self, date, time):
         all_reservations = Reservation.list_of_reservations()
         if not self._reservations_per_week(date):
-            print("Unfortunately, you already have 2 reservations that week.")
+            print("Unfortunately, you already have 2 reservations that week.\n")
             return False
 
         if not self._check_if_not_past(date, time):
-            print("This time has already passed. Try another time.")
+            print("This time has already passed. Try another time.\n")
             return False
 
         if not self._check_if_ample_time(date, time):
-            print("Unfortunately, reservation cannot be made as less than 1 hours remained to the reservation time")
+            print("Unfortunately, reservation cannot be made as less than 1 hours remained to the reservation time.\n")
             return False
 
         if not self._check_if_vacant(date, time, all_reservations):
-            print("Unfortunately, this time is already occupied.")
+            print("Unfortunately, this time is already occupied.\n")
             next_available_time = self._next_available_time(date, time, all_reservations)
             choice = input(f"Would you like to make a reservation for {next_available_time.strftime('%H:%M')} "
                            f"instead? (yes/no)\n").lower()
             if choice == 'yes':
                 self._create_new_reservation(date, next_available_time, all_reservations)
                 return True
-            print("Booking process was cancelled")
+            print("Booking process was cancelled.\n")
             return False
 
         self._create_new_reservation(date, time, all_reservations)
@@ -145,16 +148,16 @@ class Client:
             if reservation.date == date:
                 if not self._check_if_ample_time(reservation.date, reservation.start_time):
                     print("Unfortunately, reservation cannot be cancelled as less than 1 hours "
-                          "remained to the reservation time")
+                          "remained to the reservation time.\n")
                     return
 
                 self.reservation.remove(reservation)
                 Reservation.list_of_reservations().remove(reservation)
                 date_str = datetime.strftime(date, "%d.%m.%Y")
-                print(f"Your reservation for {date_str} has been cancelled.")
+                print(f"Your reservation for {date_str} has been cancelled.\n")
                 return
 
-        print("You do not have a reservation for the specified date.")
+        print("You do not have a reservation for the specified date.\n")
 
 
 class Reservation:
@@ -181,7 +184,7 @@ class Reservation:
         return Reservation._reservations
 
     @staticmethod
-    def serialize_to_json(data, date_start, date_end):
+    def _serialize_to_json(data, date_start, date_end):
         data_start_str = datetime.strftime(date_start, "%d.%m")
         data_end_str = datetime.strftime(date_end, "%d.%m")
         result = {}
@@ -196,6 +199,28 @@ class Reservation:
 
         with open(f"{data_start_str}-{data_end_str}.json", 'w') as json_file:
             json.dump(result, json_file, indent=2, cls=CustomEncoder)
+        print(f"The schedule was saved in {data_start_str}-{data_end_str}.json file.\n")
+
+    @staticmethod
+    def _write_to_csv(data, date_start, date_end):
+        data_start_str = datetime.strftime(date_start, "%d.%m")
+        data_end_str = datetime.strftime(date_end, "%d.%m")
+        with open(f"{data_start_str}-{data_end_str}.csv", 'w', newline='') as csv_file:
+            writer = csv.DictWriter(
+                csv_file,
+                fieldnames=['name', 'start_time', 'end_time'],
+                quoting=csv.QUOTE_NONE
+            )
+
+            writer.writeheader()
+            for date, reservations in data.items():
+                for record in reservations:
+                    writer.writerow({
+                        'name': record[0],
+                        'start_time': datetime.combine(date, record[1]).strftime("%d.%m.%Y %H:%M"),
+                        'end_time': datetime.combine(date, record[2]).strftime("%d.%m.%Y %H:%M")
+                    })
+        print(f"The schedule was saved in {data_start_str}-{data_end_str}.csv file.\n")
 
     @classmethod
     def schedule(cls, date_start, date_end, param):
@@ -229,6 +254,9 @@ class Reservation:
             if date_start <= reservation.date <= date_end:
                 period_schedule.get(reservation.date).append((reservation.client,
                                                               reservation.start_time, reservation.end_time))
+        for date, reservation in period_schedule.items():
+            period_schedule[date] = sorted(reservation, key=lambda details: details[1])
+
         if param == 'print':
             for date, reservations in period_schedule.items():
                 print(f"\n{_get_day_name(date)}, {datetime.strftime(date, '%d.%m.%Y')}")
@@ -241,7 +269,7 @@ class Reservation:
                     print("No Reservations")
             print()
         elif param == 'json':
-            Reservation.serialize_to_json(period_schedule, date_start, date_end)
+            Reservation._serialize_to_json(period_schedule, date_start, date_end)
 
         else:
-            pass
+            Reservation._write_to_csv(period_schedule, date_start, date_end)

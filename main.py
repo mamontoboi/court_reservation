@@ -121,10 +121,9 @@ def menu(client):
                 match file_format:
                     case '1':
                         Reservation.schedule(date_from_dt, date_to_dt, 'json')
-                        print(f"The schedule was saved in {date_from[:5]}-{date_to[:5]}.json file")
+
                     case '2':
                         Reservation.schedule(date_from_dt, date_to_dt, 'csv')
-                        print(f"The schedule was saved in {date_from[:5]}-{date_to[:5]}.csv file")
 
             case '5':
                 print("Thank you for choosing our tennis club.\n")
