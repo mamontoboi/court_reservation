@@ -37,10 +37,10 @@ class Session:
         Prompts the user for dates and a file format, then saves the club's schedule to a file.
     """
 
-    def __init__(self):
-        """Initializes a new instance of the Reservation class."""
-
-        self.main()
+    # def __init__(self):
+    #     """Initializes a new instance of the Reservation class."""
+    #
+    #     self.main()
 
     def main(self):
         """Runs the main session loop until session in completed by user."""
@@ -50,7 +50,7 @@ class Session:
             match choice:
                 case '1':
                     guest = self.greeting()
-                    self._menu(guest)
+                    self.menu(guest)
                 case '2':
                     print("Goodbye. See you again soon.")
                     break
@@ -77,7 +77,7 @@ class Session:
                 if len(clients) > 0:
                     for client in clients:
                         if client.name == name:
-                            print(f"Welcome back, {name}! \n")
+                            print(f"Welcome back, {name}!")
                             return client
 
                     client = Client(name)
@@ -89,7 +89,7 @@ class Session:
 
                 return client
 
-    def _menu(self, client):
+    def menu(self, client):
         """Displays a main menu of options to the user. Runs the selected option."""
 
         while True:

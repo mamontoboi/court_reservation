@@ -269,12 +269,12 @@ class Client:
                 if not self._check_if_ample_time(reservation.date, reservation.start_time):
                     print("Unfortunately, the reservation cannot be cancelled"
                           " as there is less than 1 hour remaining until the reservation time.\n")
-                    return
+                    return False
                 self.reservation.remove(reservation)
                 Reservation.list_of_reservations().remove(reservation)
                 date_str = datetime.strftime(date, "%d.%m.%Y")
                 print(f"Your reservation for {date_str} has been cancelled.\n")
-                return
+                return True
         print("You do not have a reservation for the specified date.\n")
 
 
@@ -341,7 +341,7 @@ class Reservation:
         return Reservation._reservations
 
     @staticmethod
-    def _is_valid_file_name(file_name):
+    def is_valid_file_name(file_name):
         """Checks whether a given file name is valid (i.e. doesn't contain any forbidden symbols)."""
 
         forbidden_symbols = r'[<>:\\"/|?*\x00-\x1f]'
@@ -351,20 +351,20 @@ class Reservation:
         return False
 
     @staticmethod
-    def _provide_file_name():
+    def provide_file_name():
         """Asks the user to provide a valid file name to save the schedule to."""
 
         while True:
             file_name = input("Please enter a valid file name to save the schedule.\n").strip()
-            if Reservation._is_valid_file_name(file_name):
+            if Reservation.is_valid_file_name(file_name):
                 return file_name
             continue
 
     @staticmethod
-    def _serialize_to_json(data):
+    def serialize_to_json(data):
         """Serializes the reservation data to a JSON file."""
 
-        file_name = Reservation._provide_file_name()
+        file_name = Reservation.provide_file_name()
         result = {}
         for date, reservations in data.items():
             date_str = date.strftime("%d.%m")
@@ -382,10 +382,10 @@ class Reservation:
         print(f"The schedule has been saved in {file_name}.json file.\n")
 
     @staticmethod
-    def _write_to_csv(data):
+    def write_to_csv(data):
         """Writes the reservation data to a CSV file."""
 
-        file_name = Reservation._provide_file_name()
+        file_name = Reservation.provide_file_name()
         with open(f"{file_name}.csv", 'w', newline='', encoding='utf-8') as csv_file:
             writer = csv.DictWriter(
                 csv_file,
@@ -396,6 +396,7 @@ class Reservation:
             writer.writeheader()
             for date, reservations in data.items():
                 for record in reservations:
+                    print(record[1], record[2])
                     writer.writerow({
                         'name': record[0],
                         'start_time': datetime.combine(date, record[1]).strftime("%d.%m.%Y %H:%M"),
@@ -457,7 +458,7 @@ class Reservation:
                     print("No Reservations")
             print()
         elif param == 'json':
-            Reservation._serialize_to_json(period_schedule)
+            Reservation.serialize_to_json(period_schedule)
 
         else:
-            Reservation._write_to_csv(period_schedule)
+            Reservation.write_to_csv(period_schedule)
