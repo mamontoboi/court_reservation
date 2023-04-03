@@ -1,5 +1,4 @@
 # Tennis Court Reservation Task
-Created by Bogdan Bagdasaryan. 
 
 ## Usage
 
